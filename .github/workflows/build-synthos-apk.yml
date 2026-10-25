@@ -1,79 +1,81 @@
+
 name: Build SynthOS APK
 
-on:
-push:
-workflow_dispatch:
+"on":
+  push:
+  workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-runs-on: ubuntu-latest
-timeout-minutes: 40
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
 
-steps:
-  - name: Check out repository
-    uses: actions/checkout@v5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
-  - name: Install Java
-    uses: actions/setup-java@v5
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Install Android SDK
-    shell: bash
-    run: |
-      set -e
-      SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-      if [ -z "$SDKMANAGER" ]; then
-        echo "Android SDK manager not found"
-        exit 1
-      fi
-      yes | "$SDKMANAGER" --licenses || true
-      "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          if [ -z "$SDKMANAGER" ]; then
+            echo "Android SDK manager not found"
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
 
-  - name: Install Gradle
-    uses: gradle/actions/setup-gradle@v4
-    with:
-      gradle-version: '8.13'
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
 
-  - name: Verify source ZIP
-    run: |
-      test -f synthos-fieldwork.zip || {
-        echo "synthos-fieldwork.zip must be in the repository root"
-        exit 1
-      }
-      unzip -t synthos-fieldwork.zip
+      - name: Verify source ZIP
+        shell: bash
+        run: |
+          set -e
+          test -f synthos-fieldwork.zip || {
+            echo "synthos-fieldwork.zip must be in the repository root"
+            exit 1
+          }
+          unzip -t synthos-fieldwork.zip
 
-  - name: Extract SynthOS
-    run: |
-      mkdir -p synthos-fieldwork
-      unzip -o synthos-fieldwork.zip -d synthos-fieldwork
+      - name: Extract SynthOS
+        run: unzip -o synthos-fieldwork.zip
 
-  - name: Enable AndroidX
-    working-directory: synthos-fieldwork
-    run: |
-      grep -qxF 'android.useAndroidX=true' gradle.properties || \
-        echo 'android.useAndroidX=true' >> gradle.properties
+      - name: Enable AndroidX
+        working-directory: synthos-fieldwork
+        run: |
+          grep -qxF 'android.useAndroidX=true' gradle.properties || \
+            echo 'android.useAndroidX=true' >> gradle.properties
 
-  - name: Verify Android project
-    run: |
-      set -e
-      test -f synthos-fieldwork/settings.gradle.kts
-      test -f synthos-fieldwork/build.gradle.kts
-      test -f synthos-fieldwork/app/build.gradle.kts
-      test -f synthos-fieldwork/app/src/main/AndroidManifest.xml
+      - name: Verify Android project
+        run: |
+          set -e
+          test -f synthos-fieldwork/settings.gradle.kts
+          test -f synthos-fieldwork/build.gradle.kts
+          test -f synthos-fieldwork/app/build.gradle.kts
+          test -f synthos-fieldwork/app/src/main/AndroidManifest.xml
 
-  - name: Test, lint, and build APK
-    working-directory: synthos-fieldwork
-    run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - name: Test, lint, and build APK
+        working-directory: synthos-fieldwork
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: synthos-fieldwork-debug-apk
-      path: synthos-fieldwork/app/build/outputs/apk/debug/app-debug.apk
-      if-no-files-found: error
-      retention-days: 14
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthos-fieldwork-debug-apk
+          path: synthos-fieldwork/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+          
